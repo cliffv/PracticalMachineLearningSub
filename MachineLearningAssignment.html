@@ -323,7 +323,8 @@ outOfSampleErrorV2 &lt;- round(1 - outOfSampleAccuracy, digits = 4)</code></pre>
 <p>Let’s get the the predictions for submission.</p>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
-<p>We conclude that removal of the predictors specified above has resulted in a slight reduction to the out of sample error rate estimate (0.0002).</p>
+<p>We conclude that removal of the predictors specified above has resulted in a slight reduction to the out of sample error rate estimate (0.0002). The predictions for submission are identical to the model that uses all variables and are all correct. We therefore stick to the reduced model using 46 variables instead of 52.
+</p>
 </div>
 </div>
 <div id="conclusion" class="section level2">
