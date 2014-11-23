@@ -1,0 +1,200 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Cliff Voetelink"
+date: "Friday, November 21, 2014"
+output: html_document
+---
+
+```{r Load Libraries,echo=TRUE,results="hide"}
+library(caret)
+library(randomForest)
+library(Hmisc)
+library(rpart)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(ggplot2)
+library(class)
+library(tree)
+library(markdown)
+library(knitr)
+```
+
+## Problem Description
+Given is a dataset with measurements of several people doing exercises in different ways with a class variable determining how well the exercise is being performed. That latter can be classified into 5 distinct categories: A, B, C, D and E. Our goal is to build a predictive model using the supplied data and to predict for 20 independent observations how well the exercise is being performed.
+
+## Loading and Splitting the Data
+First we load the data.
+
+```{r, echo=TRUE, cache=TRUE}
+original_training <- read.csv("C:/Users/CEO/Google Drive/Coursera/R/Work/MachineLearningAssignment/pml-training.csv", na.strings=c("NA",""))
+original_testing <- read.csv("C:/Users/CEO/Google Drive/Coursera/R/Work/MachineLearningAssignment/pml-testing.csv", na.strings=c("NA",""))
+```
+
+We then set the seed to 3433 so that the results can be reproduced. We partition the training data into a training set (75%) and a test set (25%) as follows. We will not do any analysis on the test set nor look at it, it will serve as an independent set just to test our model and to get an unbiased estimate of our out of sample error.
+
+```{r Splitting the Data, echo=TRUE}
+##Split the given training data into a training set and an independent testing set 
+set.seed(3433)
+inTrain <- createDataPartition(y=original_training$classe, p=0.75, list=FALSE)
+training <- original_training[inTrain,]
+testing <- original_training[-inTrain,]
+```
+
+## Data Pre-Processing
+
+In the training dataset, we check for variables with a high NA percentage, these variables should not be used as predictors as the data is often missing. A quick analysis shows that there are 100 predictors with NA percentage >= 90%. We remove these variables from both the training and testing set.
+
+Furthermore: we also remove the index, timestamp variables, num window and new window as predictors as those should not be taken into in account when predicting if someone does an exercise well or not (as they're not related to actually doing the exercise). The user name variable is also removed as we do not want to train our model to use the person who's doing the exercise as a predictor for doing well or not but rather let the measurements determine this.
+
+```{r Variable Reduction, echo=TRUE, cache=FALSE}
+# Check for variables with high NA percentage
+vPctNA <- vector() 
+
+for (i in 1:dim(training)[2]){
+    
+    NofNAs      <- sum(is.na(training[,i]))
+    LengthColumn <- length(training[,i])
+    vPctNA[i]   <- (NofNAs / LengthColumn * 100)    
+}
+
+#Number of variables without vPctNA< 90 and with vPctNA >= 90 
+summary(as.factor(vPctNA)) 
+vRemoveVariablesIndex <- which(vPctNA >= 90)
+
+#Remove variables from the training set
+training <- training[-vRemoveVariablesIndex]
+training <- subset(training, select=-c(X, user_name, num_window, new_window, cvtd_timestamp, raw_timestamp_part_1, raw_timestamp_part_2))
+
+#Remove the same variables for the testing set
+testing <- testing[-vRemoveVariablesIndex]
+testing <- subset(testing,select= -c(X, user_name, num_window, new_window, cvtd_timestamp, raw_timestamp_part_1, raw_timestamp_part_2))
+```
+
+
+## Building a Random Forest Model
+We are now left with 52 predictors and we opt for a random forest model using 5 fold cross validation to avoid overfitting. 
+
+```{r Random Forest 5 Fold CV, cache=TRUE, echo=TRUE}
+train_control <- trainControl(method="cv", number=5)
+rForestFit <- train(classe~., data=training, trControl=train_control, method="rf")
+```
+
+## Model Diagnostics
+
+```{r Model Diagnostics, cache=TRUE, echo=TRUE}
+rForestFit 
+vPredTestset <- predict(rForestFit, newdata=testing)
+confusionMatrix(testing$classe, vPredTestset)
+inSampleAccuracy <- round(max(rForestFit$results[2]), digits=4)
+inSampleError <- round(1-inSampleAccuracy,digits=4)
+outOfSampleAccuracy <- round(sum(vPredTestset == testing$classe) / length(vPredTestset), digits=4)
+outOfSampleError <- round(1 - outOfSampleAccuracy, digits = 4)
+```
+
+The in sample error rate is estimated to be 1 - `r inSampleAccuracy` = `r inSampleError`. The estimated out of sample error is expected to be at least that value.
+
+We now test our constructed model on the independent test set that we set aside when splitting the data, by applying our model to this dataset we can see if we are not overfitting when comparing to the in sample error and we can get an unbiased estimate of the out of sample error.
+
+The out of sample accuracy estimate is `r outOfSampleAccuracy`. The out of sample error estimate is `r outOfSampleError`. The constructed model is extremely accurate.
+
+## Final Predictions for Submission
+Given the high out of sample accuracy estimate, we expect all 20 predictions for  submission to be correct. This was indeed the case.
+```{r Pre-Processing Original Test Set, echo=TRUE}
+original_testingV2 <- original_testing[-vRemoveVariablesIndex]
+original_testingV2 <- subset(original_testingV2, select=-c(X, user_name, num_window, new_window, cvtd_timestamp, raw_timestamp_part_1, raw_timestamp_part_2))
+```
+
+```{r Final Predictions for Submission, echo=TRUE}
+#Final Predictions for submission
+vPredictionsSubmissions <- predict(rForestFit, newdata=original_testingV2)
+vPredictionsSubmissions
+```
+
+```{r Write Submission Files, echo=FALSE}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(vPredictionsSubmissions)
+```
+
+## Possible Further Enhancements of the Model 
+### Removing Predictors that may appear redundant
+
+Below we see a correlation heatmap of the predictors for the training dataset. From the heatmap we see that there are a few groups in which predictors strongly correlate:
+
+- The belt variables in the left bottom corner correlate with one another.
+- The gyros arm x and y variables correlate highly with one another.
+
+Note: the code I used to produce the heatmap has been taken from [R-bloggers](http://www.r-bloggers.com/using-r-correlation-heatmap-with-ggplot2/).
+
+### Correlation Heatmap
+```{r Correlation Heatmap, echo=TRUE}
+library(reshape2)
+qplot(x=Var1, y=Var2, data=melt(cor(training[,1:(dim(training)[2]-1)], use="p")), fill=value, geom="tile") +
+        scale_fill_gradient2(limits=c(-1, 1))
+```
+
+```{r Correlation Analysis, echo=TRUE, results="hide"}
+cor(training[,1:11])
+cor(training[,18:20])
+```
+
+Strongly correlated predictors (|correlation| >= 0.9) usually do not contribute with any new information and in most cases distort the model performance rather than enhancing it, therefore we decided to remove some of them. Analysis of the two groups shows that: 
+
+- Roll_belt is nearly perfectly positively correlated with total_accel_belt and accel_belt_y. It is also nearly perfectly negative correlated with accel_belt_z. 
+- The predictor pitch_belt is nearly perfectly negative correlated with accel_belt 
+and magnet_belt_x. 
+- Gyros_arm_x is nearly perfectly negative correlated with gyros_arm_y. 
+
+We therefore remove the following predictors from both the training and test set:
+
+- total_accel_belt
+- accel_belt_x
+- accel_belt_y 
+- accel_belt_z 
+- magnet_belt_x.
+- gyros_arm_y
+
+```{r, echo=FALSE}
+training <- training[-c(4,8,9,10,11,19)]
+testing <- testing[-c(4,8,9,10,11,19)]
+```
+
+We are left with 46 predictors and once again build a random forest model using 5 fold cross-validation. 
+
+```{r Random Forest 5 Fold CV using 46 Predictors, cache=TRUE, echo=TRUE}
+train_control <- trainControl(method="cv", number=5)
+rForestFit2 <- train(classe~., data=training, trControl=train_control, method="rf")
+rForestFit2
+vPredTestset <- predict(rForestFit2, newdata=testing)
+confusionMatrix(testing$classe, vPredTestset)
+inSampleAccuracyV2 <- round(max(rForestFit2$results[2]), digits=4)
+inSampleErrorV2 <- round(1-inSampleAccuracyV2,digits=4)
+outOfSampleAccuracyV2 <- round(sum(vPredTestset == testing$classe) / length(vPredTestset), digits=4)
+outOfSampleErrorV2 <- round(1 - outOfSampleAccuracyV2, digits = 4)
+
+```
+
+The in sample error rate is estimated to be 1 - `r inSampleAccuracyV2` = `r inSampleErrorV2`.
+
+The out of sample accuracy estimate is `r outOfSampleAccuracyV2`. The out of sample error estimate is `r outOfSampleErrorV2`.
+
+Let's get the the predictions for submission.
+
+```{r Pre-Processing Original Test Set with 45 Predictors, echo=FALSE}
+#Pre-Process the original test-set to the same format
+original_testingV2 <- original_testingV2[-c(4,8,9,10,11,19)]
+vPredictionsSubmissions <- predict(rForestFit2, newdata=original_testingV2)
+vPredictionsSubmissions
+```
+
+We conclude that removal of the predictors specified above has a slightly positive effect on the out of sample error rate estimate. The predictions for submission are identical to the model that uses all variables and are all correct. We therefore stick to the model reduced model using 46 variables instead of 52.
+
+## Conclusion
+With an out of sample accuracy of `r outOfSampleAccuracyV2` and having predicted right all 20 out of 20 cases for submission, we conclude that the constructed random forest model can successfully distinguish how well exercises are being done with an extremely high accuracy.
