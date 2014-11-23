@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -319,11 +319,11 @@ inSampleErrorV2 &lt;- round(1-inSampleAccuracyV2,digits=4)
 outOfSampleAccuracyV2 &lt;- round(sum(vPredTestset == testing$classe) / length(vPredTestset), digits=4)
 outOfSampleErrorV2 &lt;- round(1 - outOfSampleAccuracy, digits = 4)</code></pre>
 <p>The in sample error rate is estimated to be 1 - 0.9908 = 0.0092.</p>
-<p>The out of sample accuracy estimate is 0.9918. The out of sample error estimate is 0.0084.</p>
+<p>The out of sample accuracy estimate is 0.9918. The out of sample error estimate is 0.0082.</p>
 <p>Let’s get the the predictions for submission.</p>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
-<p>We conclude that removal of the predictors specified above does not have any effect on the out of sample error rate estimate. The predictions for submission are identical to the model that uses all variables and are all correct. We therefore stick to the model reduced model using 46 variables instead of 52.</p>
+<p>We conclude that removal of the predictors has a slightly positive effect on the out of sample error rate estimate. The predictions for submission are identical to the model that uses all variables and are all correct. We therefore choose the reduced model using 46 variables instead of 52.</p>
 </div>
 </div>
 <div id="conclusion" class="section level2">
