@@ -1,0 +1,16 @@
+base
+lattice
+ggplot2
+caret
+randomForest
+survival
+Formula
+Hmisc
+rpart
+rattle
+rpart.plot
+class
+tree
+markdown
+knitr
+reshape2
