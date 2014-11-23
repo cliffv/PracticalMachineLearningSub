@@ -194,7 +194,6 @@ vPredictionsSubmissions <- predict(rForestFit2, newdata=original_testingV2)
 vPredictionsSubmissions
 ```
 
-We conclude that removal of the predictors specified above has a slightly positive effect on the out of sample error rate estimate. The predictions for submission are identical to the model that uses all variables and are all correct. We therefore stick to the model reduced model using 46 variables instead of 52.
-
+We conclude that removal of the predictors specified above has resulted in a slight reduction to the out of sample error rate estimate (0.0002).
 ## Conclusion
 With an out of sample accuracy of `r outOfSampleAccuracyV2` and having predicted right all 20 out of 20 cases for submission, we conclude that the constructed random forest model can successfully distinguish how well exercises are being done with an extremely high accuracy.
